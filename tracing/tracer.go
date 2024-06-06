@@ -6,6 +6,7 @@ import (
 	"os"
 
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
+	"github.com/lightstep/tracecontext.go/traceparent"
 	"github.com/propertechnologies/monitor/context_util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
@@ -21,6 +22,10 @@ type (
 	Tracer struct {
 		t trace.Tracer
 		p *sdktrace.TracerProvider
+	}
+
+	HttpContext interface {
+		GetHeader(string) string
 	}
 )
 
@@ -109,4 +114,22 @@ func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)
 	span.End()
 
 	t.p.ForceFlush(ctx)
+}
+
+func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
+	// traceparent header info is sent here from bots given that traceparent header is overwriten by gcp
+	traceParent, err := traceparent.ParseString(c.GetHeader("proper-referer"))
+	if err == nil {
+		return traceParent, nil
+	}
+
+	traceParent, err = traceparent.ParseString(c.GetHeader("traceparent"))
+	if err != nil {
+		return traceparent.TraceParent{}, err
+	}
+
+	//remove spanID to avoid creating a child span
+	traceParent.SpanID = [8]byte{}
+
+	return traceParent, nil
 }

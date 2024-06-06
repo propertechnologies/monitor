@@ -91,9 +91,6 @@ func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
 		return traceparent.TraceParent{}, err
 	}
 
-	//remove spanID to avoid creating a child span
-	traceParent.SpanID = [8]byte{}
-
 	return traceParent, nil
 }
 

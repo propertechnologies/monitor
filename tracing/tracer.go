@@ -79,6 +79,10 @@ func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)
 	t.p.ForceFlush(ctx)
 }
 
+func (t *Tracer) Start(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
+	return t.t.Start(ctx, name, opts...)
+}
+
 func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
 	// traceparent header info is sent here from bots given that traceparent header is overwriten by gcp
 	traceParent, err := traceparent.ParseString(c.GetHeader("proper-referer"))

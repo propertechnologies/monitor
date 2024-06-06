@@ -67,6 +67,36 @@ func GetTracer(ctx context.Context) *Tracer {
 	return tr
 }
 
+func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)) {
+	ctx, span := t.t.Start(ctx, name)
+
+	f(ctx)
+
+	span.SetName(context_util.GetBotName(ctx))
+	span.SetAttributes(attribute.String("/bot/name", context_util.GetBotName(ctx)))
+	span.End()
+
+	t.p.ForceFlush(ctx)
+}
+
+func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
+	// traceparent header info is sent here from bots given that traceparent header is overwriten by gcp
+	traceParent, err := traceparent.ParseString(c.GetHeader("proper-referer"))
+	if err == nil {
+		return traceParent, nil
+	}
+
+	traceParent, err = traceparent.ParseString(c.GetHeader("traceparent"))
+	if err != nil {
+		return traceparent.TraceParent{}, err
+	}
+
+	//remove spanID to avoid creating a child span
+	traceParent.SpanID = [8]byte{}
+
+	return traceParent, nil
+}
+
 func buildTracer(ctx context.Context) (*Tracer, error) {
 	projectID := os.Getenv("GCP_PROJECT_ID")
 	if projectID == "" {
@@ -102,34 +132,4 @@ func buildTracer(ctx context.Context) (*Tracer, error) {
 		t: otel.GetTracerProvider().Tracer("bots/trace"),
 		p: tp,
 	}, nil
-}
-
-func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)) {
-	ctx, span := t.t.Start(ctx, name)
-
-	f(ctx)
-
-	span.SetName(context_util.GetBotName(ctx))
-	span.SetAttributes(attribute.String("/bot/name", context_util.GetBotName(ctx)))
-	span.End()
-
-	t.p.ForceFlush(ctx)
-}
-
-func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
-	// traceparent header info is sent here from bots given that traceparent header is overwriten by gcp
-	traceParent, err := traceparent.ParseString(c.GetHeader("proper-referer"))
-	if err == nil {
-		return traceParent, nil
-	}
-
-	traceParent, err = traceparent.ParseString(c.GetHeader("traceparent"))
-	if err != nil {
-		return traceparent.TraceParent{}, err
-	}
-
-	//remove spanID to avoid creating a child span
-	traceParent.SpanID = [8]byte{}
-
-	return traceParent, nil
 }

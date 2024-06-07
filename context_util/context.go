@@ -4,6 +4,14 @@ import (
 	"context"
 )
 
+type (
+	serviceNameKey string
+)
+
+const (
+	sk serviceNameKey = "ServiceName"
+)
+
 func GetRequestID(ctx context.Context) string {
 	return stringFromCtx(ctx, "RequestId")
 }
@@ -25,11 +33,7 @@ func GetEnv(ctx context.Context) string {
 }
 
 func GetServiceName(ctx context.Context) string {
-	return stringFromCtx(ctx, "ServiceName")
-}
-
-func GetAwsTaskID(ctx context.Context) string {
-	return stringFromCtx(ctx, "awsTaskId")
+	return stringFromCtx(ctx, sk)
 }
 
 func GetBotName(ctx context.Context) string {
@@ -48,7 +52,11 @@ func SetDebugOn(ctx context.Context) context.Context {
 	return context.WithValue(ctx, "debug", "true")
 }
 
-func stringFromCtx(ctx context.Context, key string) string {
+func SetServiceName(ctx context.Context, name string) context.Context {
+	return context.WithValue(ctx, sk, name)
+}
+
+func stringFromCtx(ctx context.Context, key interface{}) string {
 	var value string
 
 	l := ctx.Value(key)

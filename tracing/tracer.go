@@ -96,6 +96,8 @@ func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
 	return traceParent, nil
 }
 
+
+
 func buildTracer(ctx context.Context, name string) (*Tracer, error) {
 	projectID := os.Getenv("GCP_PROJECT_ID")
 	if projectID == "" {

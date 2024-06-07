@@ -57,8 +57,8 @@ func AddRemoteSpanContext(ctx context.Context, traceID, spanID string) context.C
 	return ctx
 }
 
-func GetTracer(ctx context.Context) *Tracer {
-	tr, err := buildTracer(ctx)
+func GetTracer(ctx context.Context, name string) *Tracer {
+	tr, err := buildTracer(ctx, name)
 	if err != nil {
 		log.Errorf(ctx, "failed to build tracer: %v", err)
 		return nil
@@ -98,7 +98,7 @@ func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
 	return traceParent, nil
 }
 
-func buildTracer(ctx context.Context) (*Tracer, error) {
+func buildTracer(ctx context.Context, name string) (*Tracer, error) {
 	projectID := os.Getenv("GCP_PROJECT_ID")
 	if projectID == "" {
 		projectID = "proper-base" // default value
@@ -114,7 +114,7 @@ func buildTracer(ctx context.Context) (*Tracer, error) {
 		resource.WithDetectors(gcp.NewDetector()),
 		resource.WithTelemetrySDK(),
 		resource.WithAttributes(
-			semconv.ServiceNameKey.String("bot"),
+			semconv.ServiceNameKey.String(name),
 		),
 	)
 	if err != nil {
@@ -130,7 +130,7 @@ func buildTracer(ctx context.Context) (*Tracer, error) {
 	otel.SetTracerProvider(tp)
 
 	return &Tracer{
-		t: otel.GetTracerProvider().Tracer("bots/trace"),
+		t: otel.GetTracerProvider().Tracer("bots/" + name),
 		p: tp,
 	}, nil
 }

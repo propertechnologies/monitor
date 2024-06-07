@@ -53,10 +53,6 @@ type spanContextLogHandler struct {
 func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) error {
 	s := trace.SpanContextFromContext(ctx)
 	if s.IsValid() {
-		bname := context_util.GetBotName(ctx)
-		if bname == "" {
-			bname = "bot"
-		}
 		// Add trace context attributes following Cloud Logging structured log format described
 		// in https://cloud.google.com/logging/docs/structured-logging#special-payload-fields
 		record.AddAttrs(
@@ -79,9 +75,6 @@ func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) 
 		)
 		record.AddAttrs(
 			slog.String("root-task-id", context_util.GetRootTaskID(ctx)),
-		)
-		record.AddAttrs(
-			slog.String("name", bname),
 		)
 	}
 

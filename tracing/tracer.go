@@ -130,7 +130,7 @@ func buildTracer(ctx context.Context, name string) (*Tracer, error) {
 	otel.SetTracerProvider(tp)
 
 	return &Tracer{
-		t: otel.GetTracerProvider().Tracer("bots/" + name),
+		t: otel.GetTracerProvider().Tracer("propertechnologies/" + name),
 		p: tp,
 	}, nil
 }

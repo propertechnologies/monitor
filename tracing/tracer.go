@@ -71,7 +71,21 @@ func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)
 
 	f(ctx)
 
-	span.SetName(context_util.GetServiceName(ctx))
+	span.End()
+
+	t.p.ForceFlush(ctx)
+}
+
+func (t *Tracer) TraceSpanLazyNaming(ctx context.Context, name func() string, f func(context.Context)) {
+	ctx, span := t.t.Start(ctx, context_util.GetServiceName(ctx))
+
+	f(ctx)
+
+	overwrite := name()
+	if overwrite != "" {
+		span.SetName(overwrite)
+	}
+
 	span.End()
 
 	t.p.ForceFlush(ctx)
@@ -95,8 +109,6 @@ func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
 
 	return traceParent, nil
 }
-
-
 
 func buildTracer(ctx context.Context, name string) (*Tracer, error) {
 	projectID := os.Getenv("GCP_PROJECT_ID")

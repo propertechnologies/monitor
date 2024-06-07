@@ -10,7 +10,6 @@ import (
 	"github.com/propertechnologies/monitor/context_util"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
@@ -72,8 +71,7 @@ func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)
 
 	f(ctx)
 
-	span.SetName(context_util.GetBotName(ctx))
-	span.SetAttributes(attribute.String("/bot/name", context_util.GetBotName(ctx)))
+	span.SetName(context_util.GetServiceName(ctx))
 	span.End()
 
 	t.p.ForceFlush(ctx)

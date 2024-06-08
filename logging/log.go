@@ -3,6 +3,8 @@ package logging
 import (
 	"context"
 	"fmt"
+
+	"github.com/propertechnologies/monitor/context_util"
 )
 
 type (
@@ -49,6 +51,10 @@ func GetLoggerOrDefault(ctx context.Context, actualLogger Logger) Logger {
 
 func SetLogger(ctx context.Context, logger Logger) context.Context {
 	return context.WithValue(ctx, "logger", logger)
+}
+
+func SetRootTaskID(ctx context.Context, taskID string) context.Context {
+	return context_util.SetRootTaskID(ctx, taskID)
 }
 
 func loggerFromCtx(ctx context.Context) Logger {

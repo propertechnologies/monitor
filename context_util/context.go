@@ -56,6 +56,10 @@ func SetServiceName(ctx context.Context, name string) context.Context {
 	return context.WithValue(ctx, sk, name)
 }
 
+func SetRootTaskID(ctx context.Context, taskID string) context.Context {
+	return context.WithValue(ctx, "RootTaskID", taskID)
+}
+
 func stringFromCtx(ctx context.Context, key interface{}) string {
 	var value string
 

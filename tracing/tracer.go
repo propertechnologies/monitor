@@ -2,19 +2,18 @@ package tracing
 
 import (
 	"context"
-	"fmt"
 	"os"
 
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/lightstep/tracecontext.go/traceparent"
 	"github.com/propertechnologies/monitor/context_util"
+	log "github.com/propertechnologies/monitor/logging"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
-	"google.golang.org/appengine/log"
 )
 
 type (
@@ -27,6 +26,45 @@ type (
 		GetHeader(string) string
 	}
 )
+
+func GetTracer(ctx context.Context, name string) *Tracer {
+	projectID := os.Getenv("GCP_PROJECT_ID")
+	if projectID == "" {
+		projectID = "proper-base" // default value
+	}
+
+	exporter, err := texporter.New(texporter.WithProjectID(projectID))
+	if err != nil {
+		log.Errorf(ctx, "failed to create exporter: %w", err)
+		return nil
+	}
+
+	res, err := resource.New(
+		ctx,
+		resource.WithDetectors(gcp.NewDetector()),
+		resource.WithTelemetrySDK(),
+		resource.WithAttributes(
+			semconv.ServiceNameKey.String(name),
+		),
+	)
+	if err != nil {
+		log.Errorf(ctx, "failed to create resource: %w", err)
+		return nil
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exporter),
+		sdktrace.WithResource(res),
+		sdktrace.WithSampler(sdktrace.AlwaysSample()),
+	)
+
+	otel.SetTracerProvider(tp)
+
+	return &Tracer{
+		t: otel.GetTracerProvider().Tracer("propertechnologies/" + name),
+		p: tp,
+	}
+}
 
 func AddRemoteSpanContext(ctx context.Context, traceID, spanID string) context.Context {
 	tid, err := trace.TraceIDFromHex(traceID)
@@ -56,14 +94,19 @@ func AddRemoteSpanContext(ctx context.Context, traceID, spanID string) context.C
 	return ctx
 }
 
-func GetTracer(ctx context.Context, name string) *Tracer {
-	tr, err := buildTracer(ctx, name)
-	if err != nil {
-		log.Errorf(ctx, "failed to build tracer: %v", err)
-		return nil
+func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
+	// traceparent header info is sent here from bots given that traceparent header is overwriten by gcp
+	traceParent, err := traceparent.ParseString(c.GetHeader("proper-referer"))
+	if err == nil {
+		return traceParent, nil
 	}
 
-	return tr
+	traceParent, err = traceparent.ParseString(c.GetHeader("traceparent"))
+	if err != nil {
+		return traceparent.TraceParent{}, err
+	}
+
+	return traceParent, nil
 }
 
 func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)) {
@@ -93,56 +136,4 @@ func (t *Tracer) TraceSpanLazyNaming(ctx context.Context, name func() string, f 
 
 func (t *Tracer) Start(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	return t.t.Start(ctx, name, opts...)
-}
-
-func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
-	// traceparent header info is sent here from bots given that traceparent header is overwriten by gcp
-	traceParent, err := traceparent.ParseString(c.GetHeader("proper-referer"))
-	if err == nil {
-		return traceParent, nil
-	}
-
-	traceParent, err = traceparent.ParseString(c.GetHeader("traceparent"))
-	if err != nil {
-		return traceparent.TraceParent{}, err
-	}
-
-	return traceParent, nil
-}
-
-func buildTracer(ctx context.Context, name string) (*Tracer, error) {
-	projectID := os.Getenv("GCP_PROJECT_ID")
-	if projectID == "" {
-		projectID = "proper-base" // default value
-	}
-
-	exporter, err := texporter.New(texporter.WithProjectID(projectID))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create exporter: %w", err)
-	}
-
-	res, err := resource.New(
-		ctx,
-		resource.WithDetectors(gcp.NewDetector()),
-		resource.WithTelemetrySDK(),
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String(name),
-		),
-	)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create resource: %w", err)
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-	)
-
-	otel.SetTracerProvider(tp)
-
-	return &Tracer{
-		t: otel.GetTracerProvider().Tracer("propertechnologies/" + name),
-		p: tp,
-	}, nil
 }

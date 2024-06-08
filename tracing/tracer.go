@@ -94,14 +94,9 @@ func AddRemoteSpanContext(ctx context.Context, traceID, spanID string) context.C
 	return ctx
 }
 
-func GetTraceparent(c HttpContext) (traceparent.TraceParent, error) {
-	// traceparent header info is sent here from bots given that traceparent header is overwriten by gcp
-	traceParent, err := traceparent.ParseString(c.GetHeader("proper-referer"))
-	if err == nil {
-		return traceParent, nil
-	}
-
-	traceParent, err = traceparent.ParseString(c.GetHeader("traceparent"))
+// Some headers "traceparent" or "proper-referer"
+func GetTraceparent(c HttpContext, header string) (traceparent.TraceParent, error) {
+	traceParent, err := traceparent.ParseString(c.GetHeader(header))
 	if err != nil {
 		return traceparent.TraceParent{}, err
 	}

@@ -64,19 +64,20 @@ func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) 
 		record.AddAttrs(
 			slog.Bool("logging.googleapis.com/trace_sampled", s.TraceFlags().IsSampled()),
 		)
-		record.AddAttrs(
-			slog.String("app", context_util.GetServiceName(ctx)),
-		)
-		record.AddAttrs(
-			slog.String("rid", context_util.GetRequestID(ctx)),
-		)
-		record.AddAttrs(
-			slog.String("flow-id", context_util.GetFlowID(ctx)),
-		)
-		record.AddAttrs(
-			slog.String("root-task-id", context_util.GetRootTaskID(ctx)),
-		)
 	}
+
+	record.AddAttrs(
+		slog.String("app", context_util.GetServiceName(ctx)),
+	)
+	record.AddAttrs(
+		slog.String("rid", context_util.GetRequestID(ctx)),
+	)
+	record.AddAttrs(
+		slog.String("flow-id", context_util.GetFlowID(ctx)),
+	)
+	record.AddAttrs(
+		slog.String("root-task-id", context_util.GetRootTaskID(ctx)),
+	)
 
 	return t.Handler.Handle(ctx, record)
 }

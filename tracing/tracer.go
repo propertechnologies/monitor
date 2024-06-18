@@ -136,6 +136,8 @@ func (t *Tracer) Start(ctx context.Context, name string, opts ...trace.SpanStart
 func BuildTraceParent(ctx context.Context) traceparent.TraceParent {
 	spanCtx := trace.SpanContextFromContext(ctx)
 	if !spanCtx.IsValid() {
+		log.Infof(ctx, "failed to get span context")
+
 		return traceparent.TraceParent{}
 	}
 

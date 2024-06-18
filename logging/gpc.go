@@ -51,7 +51,8 @@ type spanContextLogHandler struct {
 // Handle overrides slog.Handler's Handle method. This adds attributes from the
 // span context to the slog.Record.
 func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) error {
-	s := trace.SpanContextFromContext(ctx)
+	s := getSpanContext(ctx)
+
 	if s.IsValid() {
 		// Add trace context attributes following Cloud Logging structured log format described
 		// in https://cloud.google.com/logging/docs/structured-logging#special-payload-fields
@@ -80,6 +81,21 @@ func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) 
 	)
 
 	return t.Handler.Handle(ctx, record)
+}
+
+func getSpanContext(ctx context.Context) trace.SpanContext {
+	s := trace.SpanContextFromContext(ctx)
+	if !s.IsValid() {
+		traceCtx := ctx.Value("traceContext")
+		if traceCtx != nil {
+			ctx, ok := traceCtx.(context.Context)
+			if ok {
+				s = trace.SpanContextFromContext(ctx)
+			}
+		}
+	}
+
+	return s
 }
 
 func replacer(groups []string, a slog.Attr) slog.Attr {

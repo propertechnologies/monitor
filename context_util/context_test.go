@@ -80,13 +80,6 @@ func TestThatIsDebugOnReturnsTrueIfEnvironmentIsLocal(t *testing.T) {
 	assert.True(t, IsDebugOn(c))
 }
 
-func TestAWSTaskIDIsReadFromContext(t *testing.T) {
-	c := context.Background()
-	c = context.WithValue(c, "awsTaskId", "11111")
-
-	assert.Equal(t, "11111", GetAwsTaskID(c))
-}
-
 type logMock struct {
 }
 

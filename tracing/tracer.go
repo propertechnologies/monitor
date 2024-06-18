@@ -132,3 +132,17 @@ func (t *Tracer) TraceSpanLazyNaming(ctx context.Context, name func() string, f 
 func (t *Tracer) Start(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {
 	return t.t.Start(ctx, name, opts...)
 }
+
+func BuildTraceParent(ctx context.Context) traceparent.TraceParent {
+	spanCtx := trace.SpanContextFromContext(ctx)
+	if !spanCtx.IsValid() {
+		return traceparent.TraceParent{}
+	}
+
+	tp, err := traceparent.ParseString("00-" + spanCtx.TraceID().String() + "-" + spanCtx.SpanID().String() + "-00")
+	if err != nil {
+		log.Errorf(ctx, "failed to parse traceparent: %w", err)
+	}
+
+	return tp
+}

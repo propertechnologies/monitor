@@ -5,7 +5,7 @@ import "fmt"
 var (
 	ErrFailedToLogin    = New("0001", "Failed to login")
 	ErrAccountNotFound  = New("0002", "Account not found")
-	ErrSecondFactorAuth = New("0003", "Error en login por second factor")
+	ErrSecondFactorAuth = New("0003", "Error during second factor authentication")
 )
 
 type (

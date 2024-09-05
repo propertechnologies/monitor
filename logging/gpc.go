@@ -80,6 +80,12 @@ func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) 
 		slog.String("root-task-id", context_util.GetRootTaskID(ctx)),
 	)
 
+	if ctx.Value(report{}) != nil {
+		record.AddAttrs(
+			slog.String("@type", "type.googleapis.com/google.devtools.clouderrorreporting.v1beta1.ReportedErrorEvent"),
+		)
+	}
+
 	return t.Handler.Handle(ctx, record)
 }
 

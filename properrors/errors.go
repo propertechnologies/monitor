@@ -19,7 +19,7 @@ type (
 func New(id string, err string) *Error {
 	return &Error{
 		ID:   id,
-		Desc: "https://proper.com/errors/" + id,
+		Desc: "https://ledgerlord.proper.ai/errors/" + id,
 		Err:  err,
 	}
 }

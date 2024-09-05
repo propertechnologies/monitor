@@ -11,9 +11,12 @@ type (
 	Logger interface {
 		Infof(ctx context.Context, format string, args ...interface{})
 		Errorf(ctx context.Context, format string, args ...interface{})
+		Reportf(ctx context.Context, format string, args ...interface{})
 	}
 
 	DefaultLogger struct{}
+
+	report struct{}
 )
 
 func NewDefaultLogger() *DefaultLogger {
@@ -30,6 +33,10 @@ func (l *DefaultLogger) Errorf(ctx context.Context, format string, args ...inter
 	fmt.Println(message)
 }
 
+func (l *DefaultLogger) Reportf(ctx context.Context, format string, args ...interface{}) {
+	l.Errorf(ctx, format, args...)
+}
+
 func Infof(ctx context.Context, format string, args ...interface{}) {
 	log := GetLoggerOrDefault(ctx, &DefaultLogger{})
 	log.Infof(ctx, format, args...)
@@ -37,6 +44,13 @@ func Infof(ctx context.Context, format string, args ...interface{}) {
 
 func Errorf(ctx context.Context, format string, args ...interface{}) {
 	log := GetLoggerOrDefault(ctx, &DefaultLogger{})
+	log.Errorf(ctx, format, args...)
+}
+
+func Reportf(ctx context.Context, format string, args ...interface{}) {
+	log := GetLoggerOrDefault(ctx, &DefaultLogger{})
+	ctx = context.WithValue(ctx, report{}, true)
+
 	log.Errorf(ctx, format, args...)
 }
 

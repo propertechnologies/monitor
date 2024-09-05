@@ -11,7 +11,6 @@ type (
 	Logger interface {
 		Infof(ctx context.Context, format string, args ...interface{})
 		Errorf(ctx context.Context, format string, args ...interface{})
-		Reportf(ctx context.Context, format string, args ...interface{})
 	}
 
 	DefaultLogger struct{}

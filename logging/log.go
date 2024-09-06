@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 
 	"github.com/propertechnologies/monitor/context_util"
 )
@@ -48,7 +49,7 @@ func Errorf(ctx context.Context, format string, args ...interface{}) {
 
 func Reportf(ctx context.Context, format string, args ...interface{}) {
 	log := GetLoggerOrDefault(ctx, &DefaultLogger{})
-	ctx = context.WithValue(ctx, report{}, true)
+	ctx = context.WithValue(ctx, report{}, debug.Stack())
 
 	log.Errorf(ctx, format, args...)
 }

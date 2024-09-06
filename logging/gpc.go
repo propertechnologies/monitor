@@ -84,6 +84,12 @@ func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) 
 		record.AddAttrs(
 			slog.String("@type", "type.googleapis.com/google.devtools.clouderrorreporting.v1beta1.ReportedErrorEvent"),
 		)
+
+		stack, ok := ctx.Value(report{}).(string)
+		if ok {
+			slog.String("stack_trace", stack)
+		}
+
 	}
 
 	return t.Handler.Handle(ctx, record)

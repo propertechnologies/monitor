@@ -11,10 +11,10 @@ var (
 
 type (
 	Error struct {
-		ID   string `json:"id"`
-		Err  string `json:"error"`
-		Desc string `json:"description"`
-		Info string `json:"info"`
+		ID     string `json:"id"`
+		Err    string `json:"error"`
+		Desc   string `json:"description"`
+		WError error  `json:"info"`
 	}
 )
 
@@ -27,10 +27,16 @@ func New(id string, err string) *Error {
 }
 
 func (p *Error) Error() string {
-	return fmt.Sprintf("%s: %s desc:%s", p.ID, p.Err, p.Desc)
+	format := "%s: %s desc:%s"
+	if p.WError != nil {
+		format += " w:%s"
+		return fmt.Sprintf(format, p.ID, p.Err, p.Desc, p.WError)
+	}
+
+	return fmt.Sprintf(format, p.ID, p.Err, p.Desc)
 }
 
-func (p *Error) WithExtraInfo(info string) *Error {
-	p.Info = info
+func (p *Error) Wrap(e error) *Error {
+	p.WError = e
 	return p
 }

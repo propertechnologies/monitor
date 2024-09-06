@@ -12,6 +12,7 @@ type (
 	Logger interface {
 		Infof(ctx context.Context, format string, args ...interface{})
 		Errorf(ctx context.Context, format string, args ...interface{})
+		Warnf(ctx context.Context, format string, args ...interface{})
 	}
 
 	DefaultLogger struct{}
@@ -29,12 +30,15 @@ func (l *DefaultLogger) Infof(ctx context.Context, format string, args ...interf
 }
 
 func (l *DefaultLogger) Errorf(ctx context.Context, format string, args ...interface{}) {
-	message := fmt.Sprintf(format, args...)
-	fmt.Println(message)
+	l.Infof(ctx, format, args...)
 }
 
 func (l *DefaultLogger) Reportf(ctx context.Context, format string, args ...interface{}) {
-	l.Errorf(ctx, format, args...)
+	l.Infof(ctx, format, args...)
+}
+
+func (l *DefaultLogger) Warnf(ctx context.Context, format string, args ...interface{}) {
+	l.Infof(ctx, format, args...)
 }
 
 func Infof(ctx context.Context, format string, args ...interface{}) {
@@ -45,6 +49,11 @@ func Infof(ctx context.Context, format string, args ...interface{}) {
 func Errorf(ctx context.Context, format string, args ...interface{}) {
 	log := GetLoggerOrDefault(ctx, &DefaultLogger{})
 	log.Errorf(ctx, format, args...)
+}
+
+func Warnf(ctx context.Context, format string, args ...interface{}) {
+	log := GetLoggerOrDefault(ctx, &DefaultLogger{})
+	log.Warnf(ctx, format, args...)
 }
 
 func Reportf(ctx context.Context, format string, args ...interface{}) {

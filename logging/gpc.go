@@ -38,6 +38,10 @@ func (g *GCPLoggerWrapper) Errorf(ctx context.Context, format string, args ...in
 	slog.ErrorContext(ctx, fmt.Sprintf(format, args...))
 }
 
+func (g *GCPLoggerWrapper) Warnf(ctx context.Context, format string, args ...interface{}) {
+	slog.WarnContext(ctx, fmt.Sprintf(format, args...))
+}
+
 func handlerWithSpanContext(handler slog.Handler) *spanContextLogHandler {
 	return &spanContextLogHandler{Handler: handler}
 }

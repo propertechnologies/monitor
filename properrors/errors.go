@@ -3,10 +3,11 @@ package properrors
 import "fmt"
 
 var (
-	ErrFailedToLogin    = New("0001", "Failed to login")
-	ErrAccountNotFound  = New("0002", "Account not found")
-	ErrSecondFactorAuth = New("0003", "Error during second factor authentication")
-	ErrLaunchingBot     = New("0004", "Error while launching bot")
+	ErrFailedToLogin        = New("0001", "Failed to login")
+	ErrAccountNotFound      = New("0002", "Account not found")
+	ErrSecondFactorAuth     = New("0003", "Error during second factor authentication")
+	ErrLaunchingBot         = New("0004", "Error while launching bot")
+	ErrorCredentialNotFound = New("0005", "Error credentials not found")
 )
 
 type (

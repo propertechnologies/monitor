@@ -114,10 +114,10 @@ func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)
 	t.p.ForceFlush(ctx)
 }
 
-func (t *Tracer) TraceSpanLazyNaming(ctx context.Context, name func() string, f func(context.Context)) {
+func (t *Tracer) TraceSpanLazyNaming(ctx context.Context, name func() string, f func(context.Context) error) error {
 	ctx, span := t.t.Start(ctx, context_util.GetServiceName(ctx))
 
-	f(ctx)
+	err := f(ctx)
 
 	overwrite := name()
 	if overwrite != "" {
@@ -127,6 +127,8 @@ func (t *Tracer) TraceSpanLazyNaming(ctx context.Context, name func() string, f 
 	span.End()
 
 	t.p.ForceFlush(ctx)
+
+	return err
 }
 
 func (t *Tracer) Start(ctx context.Context, name string, opts ...trace.SpanStartOption) (context.Context, trace.Span) {

@@ -35,7 +35,7 @@ func GetTracer(ctx context.Context, name string) *Tracer {
 
 	exporter, err := texporter.New(texporter.WithProjectID(projectID))
 	if err != nil {
-		log.Errorf(ctx, "failed to create exporter: %w", err)
+		log.Errorf(ctx, "failed to create exporter: %v", err)
 		return nil
 	}
 
@@ -48,7 +48,7 @@ func GetTracer(ctx context.Context, name string) *Tracer {
 		),
 	)
 	if err != nil {
-		log.Errorf(ctx, "failed to create resource: %w", err)
+		log.Errorf(ctx, "failed to create resource: %v", err)
 		return nil
 	}
 

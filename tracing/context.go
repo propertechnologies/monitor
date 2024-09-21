@@ -3,6 +3,7 @@ package tracing
 import (
 	"context"
 
+	_ "cloud.google.com/go/pubsub"
 	"github.com/propertechnologies/monitor/context_util"
 )
 

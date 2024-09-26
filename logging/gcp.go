@@ -3,6 +3,7 @@ package logging
 import (
 	"context"
 	"fmt"
+	"io"
 	"log/slog"
 	"os"
 
@@ -17,8 +18,12 @@ type (
 )
 
 func NewLogger() *GCPLoggerWrapper {
+	return NewLoggerWithWriter(os.Stdout)
+}
+
+func NewLoggerWithWriter(writer io.Writer) *GCPLoggerWrapper {
 	// Use json as our base logging format.
-	jsonHandler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{ReplaceAttr: replacer})
+	jsonHandler := slog.NewJSONHandler(writer, &slog.HandlerOptions{ReplaceAttr: replacer})
 	// Add span context attributes when Context is passed to logging calls.
 	instrumentedHandler := handlerWithSpanContext(jsonHandler)
 	// Set this handler as the global slog handler.
@@ -91,7 +96,9 @@ func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) 
 
 		stack, ok := ctx.Value(report{}).([]byte)
 		if ok {
-			slog.String("stack_trace", string(stack))
+			record.AddAttrs(
+				slog.String("stack_trace", string(stack)),
+			)
 		}
 	}
 

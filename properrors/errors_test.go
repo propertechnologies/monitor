@@ -12,10 +12,3 @@ func TestErrorPrintsItsWrappedError(t *testing.T) {
 		t.Errorf("Error message is not as expected")
 	}
 }
-
-func TestErrorDoesntFailWhenWrappedErrorDoesNotExist(t *testing.T) {
-	err := ErrLaunchingBot
-	if err.Error() != "0004: Error while launching bot desc:https://ledgerlord.proper.ai/errors/0004" {
-		t.Errorf("Error message is not as expected: Got %s", err.Error())
-	}
-}

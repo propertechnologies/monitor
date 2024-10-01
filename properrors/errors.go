@@ -1,13 +1,17 @@
 package properrors
 
-import "fmt"
+import (
+	"fmt"
+)
 
 var (
-	ErrFailedToLogin        = New("0001", "Failed to login")
-	ErrAccountNotFound      = New("0002", "Account not found")
-	ErrSecondFactorAuth     = New("0003", "Error during second factor authentication")
-	ErrLaunchingBot         = New("0004", "Error while launching bot")
-	ErrorCredentialNotFound = New("0005", "Error credentials not found")
+	ErrFailedToLogin                     = New("0001", "Failed to login")
+	ErrFailedToLoginByExpiredCredentials = ErrFailedToLogin.WithSubType("01", "expired credentials")
+	ErrFailedToLoginByInvalidCredentials = ErrFailedToLogin.WithSubType("02", "invalid credentials")
+	ErrAccountNotFound                   = New("0002", "Account not found")
+	ErrSecondFactorAuth                  = New("0003", "Error during second factor authentication")
+	ErrLaunchingBot                      = New("0004", "Error while launching bot")
+	ErrorCredentialNotFound              = New("0005", "Error credentials not found")
 )
 
 type (
@@ -40,4 +44,13 @@ func (p *Error) Error() string {
 func (p *Error) Wrap(e error) *Error {
 	p.WError = e
 	return p
+}
+
+func (p *Error) WithSubType(code string, errMsg string) *Error {
+	t := New(p.ID, p.Err)
+	t.ID = fmt.Sprintf("%s-%s", p.ID, code)
+	t.Err = fmt.Sprintf("%s:%s", p.Err, errMsg)
+	t.Desc = fmt.Sprintf("%s-%s", p.Desc, code)
+
+	return t
 }

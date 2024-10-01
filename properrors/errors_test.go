@@ -12,3 +12,30 @@ func TestErrorPrintsItsWrappedError(t *testing.T) {
 		t.Errorf("Error message is not as expected")
 	}
 }
+
+func TestCreateErrorsAndCheckMessagesValues(t *testing.T) {
+	var cases = []struct {
+		name     string
+		input    error
+		expected string
+	}{
+		{
+			name:     "Test creating error without subtype",
+			input:    ErrFailedToLogin,
+			expected: "0001: Failed to login desc:https://ledgerlord.proper.ai/errors/0001",
+		},
+		{
+			name:     "Test creating error with subtype",
+			input:    ErrFailedToLoginByExpiredCredentials,
+			expected: "0001-01: Failed to login:expired credentials desc:https://ledgerlord.proper.ai/errors/0001-01",
+		},
+	}
+
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if c.input.Error() != c.expected {
+				t.Errorf("results don´t match: expected %v, got %v", c.expected, c.input)
+			}
+		})
+	}
+}

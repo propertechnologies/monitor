@@ -8,10 +8,12 @@ var (
 	ErrFailedToLogin                     = New("0001", "Failed to login")
 	ErrFailedToLoginByExpiredCredentials = ErrFailedToLogin.WithSubType("01", "expired credentials")
 	ErrFailedToLoginByInvalidCredentials = ErrFailedToLogin.WithSubType("02", "invalid credentials")
-	ErrAccountNotFound                   = New("0002", "Account not found")
-	ErrSecondFactorAuth                  = New("0003", "Error during second factor authentication")
-	ErrLaunchingBot                      = New("0004", "Error while launching bot")
-	ErrorCredentialNotFound              = New("0005", "Error credentials not found")
+
+	ErrAccountNotFound      = New("0002", "Account not found")
+	ErrSecondFactorAuth     = New("0003", "Error during second factor authentication")
+	ErrLaunchingBot         = New("0004", "Error while launching bot")
+	ErrorCredentialNotFound = New("0005", "Error credentials not found")
+	ErrorGettingCredentials = New("0006", "Error getting credentials")
 )
 
 type (

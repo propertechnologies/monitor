@@ -39,3 +39,10 @@ func TestCreateErrorsAndCheckMessagesValues(t *testing.T) {
 		})
 	}
 }
+
+func TestThatIsReturnsTrueIfErrorIsTheSame(t *testing.T) {
+	err := ErrFailedToLoginByExpiredCredentials
+	if errors.Is(err, ErrFailedToLoginByExpiredCredentials) == false {
+		t.Errorf("Is() should return true")
+	}
+}

@@ -56,3 +56,15 @@ func (p *Error) WithSubType(code string, errMsg string) *Error {
 
 	return t
 }
+
+func (p *Error) Is(err error) bool {
+	if err == nil {
+		return false
+	}
+	e, ok := err.(*Error)
+	if !ok {
+		return false
+	}
+
+	return (e.ID == p.ID) && (e.Err == p.Err) && (e.Desc == p.Desc)
+}

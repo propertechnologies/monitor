@@ -1,4 +1,4 @@
-package contador
+package client
 
 import (
 	"context"
@@ -11,25 +11,27 @@ import (
 
 const traceparent = "traceparent"
 
-type Client struct {
-	client             *http.Client
-	authorizationToken *string
-}
+type (
+	Client struct {
+		client             HTTPClient
+		authorizationToken string
+	}
 
-func NewClient(client *http.Client) *Client {
+	HTTPClient interface {
+		Do(req *http.Request) (*http.Response, error)
+	}
+)
+
+func NewClient(client HTTPClient) *Client {
 	return &Client{client: client}
 }
 
-func (c *Client) SetAuthorizationToken(token string) {
-	c.authorizationToken = &token
+func NewClientWithTokent(client HTTPClient, token string) *Client {
+	return &Client{client: client, authorizationToken: token}
 }
 
 func (c *Client) DoRequest(ctx context.Context, method, url string, body io.Reader) ([]byte, error) {
-	request, err := c.buildRequest(method, url, body, func(r *http.Request) {
-		c.SetAuthorizationheader(r)
-		SetFlowID(r)
-		SetTraceparentHeader(r)
-	})
+	request, err := c.setGenericHeaders(method, url, body)
 	if err != nil {
 		return nil, err
 	}
@@ -37,12 +39,8 @@ func (c *Client) DoRequest(ctx context.Context, method, url string, body io.Read
 	return c.execute(ctx, request)
 }
 
-func (c *Client) SetAuthorizationheader(request *http.Request) {
-	if c.authorizationToken != nil {
-		request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", *c.authorizationToken))
-	} else {
-		c.SetAuthorizationheader(request)
-	}
+func SetAuthorizationheader(request *http.Request, token string) {
+	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 }
 
 func (c *Client) buildRequest(
@@ -63,7 +61,7 @@ func (c *Client) buildRequest(
 	return req, nil
 }
 
-func (c *Client) execute(ctx context.Context, req *http.Request) ([]byte, error) {
+func (c *Client) execute(_ context.Context, req *http.Request) ([]byte, error) {
 	res, err := c.client.Do(req)
 	if err != nil {
 		return nil, err
@@ -103,21 +101,31 @@ func (c *Client) BuildUrl(baseURL string, params map[string]string) string {
 }
 
 func (c *Client) DoRequestWithContentType(ctx context.Context, method, url string, body io.Reader, contentType string) ([]byte, error) {
-	request, err := c.buildRequest(method, url, body, func(r *http.Request) {
-		c.SetAuthorizationheader(r)
-		SetFlowID(r)
-		SetTraceparentHeader(r)
-	})
+	request, err := c.setGenericHeaders(method, url, body)
+	if err != nil {
+		return nil, err
+	}
 
 	if contentType != "" {
 		request.Header.Set("Content-Type", contentType)
 	}
 
+	return c.execute(ctx, request)
+}
+
+func (c *Client) setGenericHeaders(method string, url string, body io.Reader) (*http.Request, error) {
+	request, err := c.buildRequest(method, url, body, func(r *http.Request) {
+		if c.authorizationToken != "" {
+			SetAuthorizationheader(r, c.authorizationToken)
+		}
+		SetFlowID(r)
+		SetTraceparentHeader(r)
+	})
 	if err != nil {
 		return nil, err
 	}
 
-	return c.execute(ctx, request)
+	return request, nil
 }
 
 func SetTraceparentHeader(request *http.Request) {

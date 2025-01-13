@@ -49,3 +49,4 @@ DoRequest(ctx context.Context, method, url string, body io.Reader)
 DoRequestWithContentType(ctx context.Context, method, url string, body io.Reader, contentType string)
 SetAuthorizationheader(request *http.Request)
 ```
+

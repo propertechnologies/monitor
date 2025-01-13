@@ -40,3 +40,13 @@ ctx := logging.SetLogger(context.Background(), logging.NewLogger())
 err := fmt.Errorf("some error %s", "!!!!")
 log.Reportf(ctx, "No tracer found in context",err)
 ```
+
+- Client
+```golang
+import "github.com/propertechnologies/monitor/client"
+
+DoRequest(ctx context.Context, method, url string, body io.Reader)
+DoRequestWithContentType(ctx context.Context, method, url string, body io.Reader, contentType string)
+SetAuthorizationheader(request *http.Request)
+```
+

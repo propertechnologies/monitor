@@ -142,45 +142,48 @@ func SetFlowID(request *http.Request) {
 func GetTraceparent() string {
 	return os.Getenv(traceparent)
 }
+
 func GetFlowID() string {
 	return os.Getenv("FLOW")
 }
 
-func (c *Client) BuildMultipartFormRequest(ctx context.Context, method, url string, formData map[string]string, fileFieldName, fileName, filepath string) (*http.Request, error) {
+// MultipartFile struct to encapsulate file data
+type MultipartFile struct {
+	FieldName string
+	FileName  string
+	Reader    io.Reader
+}
+
+func (c *Client) BuildMultipartFormRequest(
+	ctx context.Context,
+	method, url string,
+	formData map[string]string,
+	file *MultipartFile,
+) (*http.Request, error) {
 	// Create a buffer to hold the multipart form data
 	var buffer bytes.Buffer
 	writer := multipart.NewWriter(&buffer)
 
 	// Add form fields
 	for key, value := range formData {
-		err := writer.WriteField(key, value)
-		if err != nil {
+		if err := writer.WriteField(key, value); err != nil {
 			return nil, err
 		}
 	}
 
 	// Add file
-	fileWriter, err := writer.CreateFormFile(fileFieldName, fileName)
+	fileWriter, err := writer.CreateFormFile(file.FieldName, file.FileName)
 	if err != nil {
 		return nil, err
 	}
-
-	// Open the file
-	file, err := os.Open(filepath)
-	if err != nil {
-		return nil, err
-	}
-	defer file.Close()
 
 	// Copy the file content to the file writer
-	_, err = io.Copy(fileWriter, file)
-	if err != nil {
+	if _, err = io.Copy(fileWriter, file.Reader); err != nil {
 		return nil, err
 	}
 
 	// Close the writer to finalize the form data
-	err = writer.Close()
-	if err != nil {
+	if err := writer.Close(); err != nil {
 		return nil, err
 	}
 
@@ -193,39 +196,44 @@ func (c *Client) BuildMultipartFormRequest(ctx context.Context, method, url stri
 	// Set the content type to multipart/form-data with the boundary
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
+	// Set additional headers if necessary
 	if c.authorizationToken != "" {
 		SetAuthorizationheader(req, c.authorizationToken)
 	}
 	SetFlowID(req)
 	SetTraceparentHeader(req)
 
-	return req, err
+	return req, nil
 }
 
-func (c *Client) ExecuteRequestRaw(ctx context.Context, req *http.Request) ([]byte, int, error) {
+func (c *Client) DoRequestRaw(ctx context.Context, req *http.Request) (*http.Response, error) {
 	res, err := c.client.Do(req)
 	if err != nil {
-		return nil, 500, err
+		return res, err
 	}
 
-	defer res.Body.Close()
-
-	bodyBytes, err := io.ReadAll(res.Body)
-	return bodyBytes, res.StatusCode, err
+	return res, nil
 }
 
-func (c *Client) ExecuteRequest(ctx context.Context, req *http.Request) ([]byte, error) {
-	bodyBytes, statusCode, err := c.ExecuteRequestRaw(ctx, req)
+func (c *Client) DoRequestWithRaw(ctx context.Context, req *http.Request) ([]byte, error) {
+	response, err := c.DoRequestRaw(ctx, req)
 	if err != nil {
 		return nil, err
 	}
-	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+	defer response.Body.Close()
+
+	bodyBytes, err := io.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		var err error
 
-		if bodyBytes != nil {
-			err = fmt.Errorf("status %d, message %s", statusCode, string(bodyBytes))
+		if response.Body != nil {
+			err = fmt.Errorf("status %d, message %s", response.StatusCode, string(bodyBytes))
 		} else {
-			err = fmt.Errorf("status %d", statusCode)
+			err = fmt.Errorf("status %d", response.StatusCode)
 		}
 
 		return nil, err

@@ -1,8 +1,10 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"strings"
 	"testing"
@@ -55,6 +57,55 @@ func TestThatContentTypeIsSent(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.NotEmpty(t, resp)
+}
+
+type MockFile struct {
+	content string
+}
+
+func (m *MockFile) Read(p []byte) (n int, err error) {
+	copy(p, m.content)
+	return len(m.content), io.EOF
+}
+
+func TestBuildMultipartFormRequest(t *testing.T) {
+	client := &Client{authorizationToken: "myToken"}
+	formData := map[string]string{"field1": "value1", "field2": "value2"}
+	mockFile := &MockFile{content: "file content"}
+	file := &MultipartFile{FieldName: "file", FileName: "test.txt", Reader: mockFile}
+
+	req, err := client.BuildMultipartFormRequest(context.Background(), "POST", "http://example.com", formData, file)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, req)
+	assert.Equal(t, "POST", req.Method)
+	assert.Contains(t, req.Header.Get("Content-Type"), "multipart/form-data")
+
+	buffer := new(bytes.Buffer)
+	_, err = buffer.ReadFrom(req.Body)
+	assert.NoError(t, err)
+
+	boundary := req.Header.Get("Content-Type")[30:]
+
+	reader := multipart.NewReader(buffer, boundary)
+
+	var fileFound bool
+
+	for {
+		part, err := reader.NextPart()
+		if err == io.EOF {
+			break
+		}
+		assert.NoError(t, err)
+
+		if part.FormName() == "file" {
+			assert.Equal(t, "test.txt", part.FileName())
+			fileFound = true
+			break
+		}
+	}
+
+	assert.True(t, fileFound, "File part not found in multipart request")
 }
 
 type HTTPClientMock struct {

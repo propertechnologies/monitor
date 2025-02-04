@@ -202,8 +202,8 @@ func (c *Client) BuildMultipartFormRequest(ctx context.Context, method, url stri
 	return req, err
 }
 
-func (lc *Client) ExecuteRequestRaw(ctx context.Context, req *http.Request) ([]byte, int, error) {
-	res, err := lc.client.Do(req)
+func (c *Client) ExecuteRequestRaw(ctx context.Context, req *http.Request) ([]byte, int, error) {
+	res, err := c.client.Do(req)
 	if err != nil {
 		return nil, 500, err
 	}
@@ -212,4 +212,24 @@ func (lc *Client) ExecuteRequestRaw(ctx context.Context, req *http.Request) ([]b
 
 	bodyBytes, err := io.ReadAll(res.Body)
 	return bodyBytes, res.StatusCode, err
+}
+
+func (c *Client) ExecuteRequest(ctx context.Context, req *http.Request) ([]byte, error) {
+	bodyBytes, statusCode, err := c.ExecuteRequestRaw(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+		var err error
+
+		if bodyBytes != nil {
+			err = fmt.Errorf("status %d, message %s", statusCode, string(bodyBytes))
+		} else {
+			err = fmt.Errorf("status %d", statusCode)
+		}
+
+		return nil, err
+	}
+
+	return bodyBytes, nil
 }

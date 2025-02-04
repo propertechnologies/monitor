@@ -214,30 +214,3 @@ func (c *Client) DoRequestRaw(ctx context.Context, req *http.Request) (*http.Res
 
 	return res, nil
 }
-
-func (c *Client) DoRequestWithRaw(ctx context.Context, req *http.Request) ([]byte, error) {
-	response, err := c.DoRequestRaw(ctx, req)
-	if err != nil {
-		return nil, err
-	}
-	defer response.Body.Close()
-
-	bodyBytes, err := io.ReadAll(response.Body)
-	if err != nil {
-		return nil, err
-	}
-
-	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
-		var err error
-
-		if response.Body != nil {
-			err = fmt.Errorf("status %d, message %s", response.StatusCode, string(bodyBytes))
-		} else {
-			err = fmt.Errorf("status %d", response.StatusCode)
-		}
-
-		return nil, err
-	}
-
-	return bodyBytes, nil
-}

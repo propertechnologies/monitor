@@ -1,9 +1,11 @@
 package client
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
 	"os"
@@ -142,4 +144,92 @@ func GetTraceparent() string {
 }
 func GetFlowID() string {
 	return os.Getenv("FLOW")
+}
+
+func (c *Client) BuildMultipartFormRequest(ctx context.Context, method, url string, formData map[string]string, fileFieldName, fileName, filepath string) (*http.Request, error) {
+	// Create a buffer to hold the multipart form data
+	var buffer bytes.Buffer
+	writer := multipart.NewWriter(&buffer)
+
+	// Add form fields
+	for key, value := range formData {
+		err := writer.WriteField(key, value)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	// Add file
+	fileWriter, err := writer.CreateFormFile(fileFieldName, fileName)
+	if err != nil {
+		return nil, err
+	}
+
+	// Open the file
+	file, err := os.Open(filepath)
+	if err != nil {
+		return nil, err
+	}
+	defer file.Close()
+
+	// Copy the file content to the file writer
+	_, err = io.Copy(fileWriter, file)
+	if err != nil {
+		return nil, err
+	}
+
+	// Close the writer to finalize the form data
+	err = writer.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	// Create a new request with the multipart form data
+	req, err := http.NewRequest(method, url, &buffer)
+	if err != nil {
+		return nil, err
+	}
+
+	// Set the content type to multipart/form-data with the boundary
+	req.Header.Set("Content-Type", writer.FormDataContentType())
+
+	if c.authorizationToken != "" {
+		SetAuthorizationheader(req, c.authorizationToken)
+	}
+	SetFlowID(req)
+	SetTraceparentHeader(req)
+
+	return req, err
+}
+
+func (c *Client) ExecuteRequestRaw(ctx context.Context, req *http.Request) ([]byte, int, error) {
+	res, err := c.client.Do(req)
+	if err != nil {
+		return nil, 500, err
+	}
+
+	defer res.Body.Close()
+
+	bodyBytes, err := io.ReadAll(res.Body)
+	return bodyBytes, res.StatusCode, err
+}
+
+func (c *Client) ExecuteRequest(ctx context.Context, req *http.Request) ([]byte, error) {
+	bodyBytes, statusCode, err := c.ExecuteRequestRaw(ctx, req)
+	if err != nil {
+		return nil, err
+	}
+	if statusCode < http.StatusOK || statusCode >= http.StatusMultipleChoices {
+		var err error
+
+		if bodyBytes != nil {
+			err = fmt.Errorf("status %d, message %s", statusCode, string(bodyBytes))
+		} else {
+			err = fmt.Errorf("status %d", statusCode)
+		}
+
+		return nil, err
+	}
+
+	return bodyBytes, nil
 }

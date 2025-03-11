@@ -24,6 +24,22 @@ func TestThatAuthorizationTokenIsSent(t *testing.T) {
 	assert.NotEmpty(t, resp)
 }
 
+func TestThatExtraHeadersAreSent(t *testing.T) {
+	httpClientMock := newHTTPClientMock()
+	httpClientMock.checkToken = true
+
+	extraHeader := map[string]string{
+		"X-Decrypt": "true",
+	}
+
+	cl := NewClientWithTokent(httpClientMock, "myToken")
+
+	resp, err := cl.DoRequestWithExtraHeaders(context.Background(), "GET", "http://example.com", nil, extraHeader)
+
+	assert.NoError(t, err)
+	assert.NotEmpty(t, resp)
+}
+
 func TestThatAuthorizationTokenIsNotSentWhenUsingSimpleConstructor(t *testing.T) {
 	httpClientMock := newHTTPClientMock()
 

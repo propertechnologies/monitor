@@ -32,8 +32,12 @@ func NewClientWithTokent(client HTTPClient, token string) *Client {
 	return &Client{client: client, authorizationToken: token}
 }
 
-func (c *Client) DoRequest(ctx context.Context, method, url string, body io.Reader) ([]byte, error) {
-	request, err := c.setGenericHeaders(method, url, body)
+func (c *Client) DoRequest(
+	ctx context.Context,
+	method, url string,
+	body io.Reader,
+) ([]byte, error) {
+	request, err := c.setGenericHeaders(method, url, body, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -41,7 +45,20 @@ func (c *Client) DoRequest(ctx context.Context, method, url string, body io.Read
 	return c.execute(ctx, request)
 }
 
-func SetAuthorizationheader(request *http.Request, token string) {
+func (c *Client) DoRequestWithExtraHeaders(
+	ctx context.Context,
+	method, url string,
+	body io.Reader,
+	extraHeaders map[string]string) ([]byte, error) {
+	request, err := c.setGenericHeaders(method, url, body, extraHeaders)
+	if err != nil {
+		return nil, err
+	}
+
+	return c.execute(ctx, request)
+}
+
+func SetAuthorizationHeader(request *http.Request, token string) {
 	request.Header.Set("Authorization", fmt.Sprintf("Bearer %s", token))
 }
 
@@ -103,7 +120,7 @@ func (c *Client) BuildUrl(baseURL string, params map[string]string) string {
 }
 
 func (c *Client) DoRequestWithContentType(ctx context.Context, method, url string, body io.Reader, contentType string) ([]byte, error) {
-	request, err := c.setGenericHeaders(method, url, body)
+	request, err := c.setGenericHeaders(method, url, body, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -115,19 +132,29 @@ func (c *Client) DoRequestWithContentType(ctx context.Context, method, url strin
 	return c.execute(ctx, request)
 }
 
-func (c *Client) setGenericHeaders(method string, url string, body io.Reader) (*http.Request, error) {
+func (c *Client) setGenericHeaders(method string, url string, body io.Reader, extraHeaders map[string]string) (*http.Request, error) {
 	request, err := c.buildRequest(method, url, body, func(r *http.Request) {
 		if c.authorizationToken != "" {
-			SetAuthorizationheader(r, c.authorizationToken)
+			SetAuthorizationHeader(r, c.authorizationToken)
 		}
 		SetFlowID(r)
 		SetTraceparentHeader(r)
+
+		if len(extraHeaders) != 0 {
+			for headerName, headerValue := range extraHeaders {
+				SetHeader(r, headerName, headerValue)
+			}
+		}
 	})
 	if err != nil {
 		return nil, err
 	}
 
 	return request, nil
+}
+
+func SetHeader(request *http.Request, headerName, headerValue string) {
+	request.Header.Set(headerName, headerValue)
 }
 
 func SetTraceparentHeader(request *http.Request) {
@@ -198,7 +225,7 @@ func (c *Client) BuildMultipartFormRequest(
 
 	// Set additional headers if necessary
 	if c.authorizationToken != "" {
-		SetAuthorizationheader(req, c.authorizationToken)
+		SetAuthorizationHeader(req, c.authorizationToken)
 	}
 	SetFlowID(req)
 	SetTraceparentHeader(req)

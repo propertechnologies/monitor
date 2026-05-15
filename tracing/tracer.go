@@ -2,7 +2,10 @@ package tracing
 
 import (
 	"context"
+	"fmt"
 	"os"
+	"strconv"
+	"sync"
 
 	texporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace"
 	"github.com/lightstep/tracecontext.go/traceparent"
@@ -10,10 +13,18 @@ import (
 	log "github.com/propertechnologies/monitor/logging"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 	"go.opentelemetry.io/otel/trace"
+)
+
+const (
+	// EnvProjectID is the GCP project ID the trace exporter ships to.
+	EnvProjectID = "GCP_PROJECT_ID"
+	// EnvSampleRatio is the trace sample ratio in [0,1]. Unset or invalid means AlwaysSample.
+	EnvSampleRatio = "MONITOR_TRACE_SAMPLE_RATIO"
 )
 
 type (
@@ -27,43 +38,98 @@ type (
 	}
 )
 
+var (
+	providerOnce sync.Once
+	providerVal  *sdktrace.TracerProvider
+	providerErr  error
+)
+
+// GetTracer returns a Tracer backed by a process-wide singleton TracerProvider.
+// The first call initializes the provider; subsequent calls reuse it and only
+// rebind the named instrumentation scope. Returns nil on init failure (logged).
+//
+// The provider is built from environment configuration:
+//   - GCP_PROJECT_ID (required) — destination project for the Cloud Trace exporter
+//   - MONITOR_TRACE_SAMPLE_RATIO (optional) — parent-based ratio sampler; defaults to AlwaysSample
+//
+// Callers should defer Shutdown on the returned Tracer in main.
 func GetTracer(ctx context.Context, name string) *Tracer {
-	projectID := os.Getenv("GCP_PROJECT_ID")
-	if projectID == "" {
-		projectID = "proper-base" // default value
-	}
-
-	exporter, err := texporter.New(texporter.WithProjectID(projectID))
+	tp, err := initProvider(ctx, name)
 	if err != nil {
-		log.Errorf(ctx, "failed to create exporter: %v", err)
+		log.Errorf(ctx, "tracing: failed to init provider: %v", err)
 		return nil
 	}
-
-	res, err := resource.New(
-		ctx,
-		resource.WithDetectors(gcp.NewDetector()),
-		resource.WithTelemetrySDK(),
-		resource.WithAttributes(
-			semconv.ServiceNameKey.String(name),
-		),
-	)
-	if err != nil {
-		log.Errorf(ctx, "failed to create resource: %v", err)
-		return nil
-	}
-
-	tp := sdktrace.NewTracerProvider(
-		sdktrace.WithBatcher(exporter),
-		sdktrace.WithResource(res),
-		sdktrace.WithSampler(sdktrace.AlwaysSample()),
-	)
-
-	otel.SetTracerProvider(tp)
 
 	return &Tracer{
-		t: otel.GetTracerProvider().Tracer("propertechnologies/" + name),
+		t: tp.Tracer("propertechnologies/" + name),
 		p: tp,
 	}
+}
+
+func initProvider(ctx context.Context, name string) (*sdktrace.TracerProvider, error) {
+	providerOnce.Do(func() {
+		projectID := os.Getenv(EnvProjectID)
+		if projectID == "" {
+			providerErr = fmt.Errorf("tracing: %s is not set", EnvProjectID)
+			return
+		}
+
+		exporter, err := texporter.New(texporter.WithProjectID(projectID))
+		if err != nil {
+			providerErr = fmt.Errorf("tracing: create exporter: %w", err)
+			return
+		}
+
+		res, err := resource.New(
+			ctx,
+			resource.WithDetectors(gcp.NewDetector()),
+			resource.WithTelemetrySDK(),
+			resource.WithAttributes(
+				semconv.ServiceNameKey.String(name),
+			),
+		)
+		if err != nil {
+			providerErr = fmt.Errorf("tracing: build resource: %w", err)
+			return
+		}
+
+		tp := sdktrace.NewTracerProvider(
+			sdktrace.WithBatcher(exporter),
+			sdktrace.WithResource(res),
+			sdktrace.WithSampler(samplerFromEnv()),
+		)
+
+		otel.SetTracerProvider(tp)
+		otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+			propagation.TraceContext{},
+			propagation.Baggage{},
+		))
+
+		providerVal = tp
+	})
+
+	return providerVal, providerErr
+}
+
+func samplerFromEnv() sdktrace.Sampler {
+	raw := os.Getenv(EnvSampleRatio)
+	if raw == "" {
+		return sdktrace.AlwaysSample()
+	}
+	ratio, err := strconv.ParseFloat(raw, 64)
+	if err != nil || ratio < 0 || ratio > 1 {
+		return sdktrace.AlwaysSample()
+	}
+	return sdktrace.ParentBased(sdktrace.TraceIDRatioBased(ratio))
+}
+
+// Shutdown flushes pending spans and stops the underlying provider. Safe to call
+// once at process exit. Subsequent calls are no-ops.
+func (t *Tracer) Shutdown(ctx context.Context) error {
+	if t == nil || t.p == nil {
+		return nil
+	}
+	return t.p.Shutdown(ctx)
 }
 
 func AddRemoteSpanContext(ctx context.Context, traceID, spanID string) context.Context {
@@ -106,27 +172,20 @@ func GetTraceparent(c HttpContext, header string) (traceparent.TraceParent, erro
 
 func (t *Tracer) Trace(ctx context.Context, name string, f func(context.Context)) {
 	ctx, span := t.t.Start(ctx, name)
+	defer span.End()
 
 	f(ctx)
-
-	span.End()
-
-	t.p.ForceFlush(ctx)
 }
 
 func (t *Tracer) TraceSpanLazyNaming(ctx context.Context, name func() string, f func(context.Context) error) error {
 	ctx, span := t.t.Start(ctx, context_util.GetServiceName(ctx))
+	defer span.End()
 
 	err := f(ctx)
 
-	overwrite := name()
-	if overwrite != "" {
+	if overwrite := name(); overwrite != "" {
 		span.SetName(overwrite)
 	}
-
-	span.End()
-
-	t.p.ForceFlush(ctx)
 
 	return err
 }

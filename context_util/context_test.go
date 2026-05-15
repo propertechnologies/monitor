@@ -37,7 +37,7 @@ func TestGetdebug(t *testing.T) {
 
 func TestGetServiceName(t *testing.T) {
 	c := context.Background()
-	c = context.WithValue(c, "ServiceName", "ledgerlord")
+	c = SetServiceName(c, "ledgerlord")
 
 	assert.Equal(t, "ledgerlord", GetServiceName(c))
 }

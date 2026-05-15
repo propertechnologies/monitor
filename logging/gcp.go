@@ -11,6 +11,11 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
+// EnvProjectID is the GCP project ID used to format the trace field in
+// structured log records. Cloud Logging requires "projects/<id>/traces/<trace_id>"
+// to link a log entry to its trace.
+const EnvProjectID = "GCP_PROJECT_ID"
+
 type (
 	GCPLoggerWrapper struct {
 		logger *slog.Logger
@@ -65,9 +70,11 @@ func (t *spanContextLogHandler) Handle(ctx context.Context, record slog.Record) 
 	if s.IsValid() {
 		// Add trace context attributes following Cloud Logging structured log format described
 		// in https://cloud.google.com/logging/docs/structured-logging#special-payload-fields
-		record.AddAttrs(
-			slog.Any("logging.googleapis.com/trace", "projects/proper-base/traces/"+s.TraceID().String()),
-		)
+		if projectID := os.Getenv(EnvProjectID); projectID != "" {
+			record.AddAttrs(
+				slog.Any("logging.googleapis.com/trace", "projects/"+projectID+"/traces/"+s.TraceID().String()),
+			)
+		}
 		record.AddAttrs(
 			slog.Any("logging.googleapis.com/spanId", s.SpanID()),
 		)

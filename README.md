@@ -23,6 +23,8 @@ metrics with minimal boilerplate.
 | `GCP_PROJECT_ID` | yes | — | Destination project for trace + metrics + logging trace correlation. Init returns an error if unset. |
 | `MONITOR_TRACE_SAMPLE_RATIO` | no | AlwaysSample | Float in `[0,1]`. Parent-based ratio sampler. |
 | `MONITOR_METRICS_INTERVAL` | no | `60s` | Periodic reader interval (Go duration). |
+| `OTEL_RESOURCE_ATTRIBUTES` | no | — | Standard OTel env var; merged into every metric + span as resource attributes. Use for `deployment.environment=prod`, `service.namespace=…`, etc. Comma-separated `key=value` pairs. |
+| `OTEL_SERVICE_NAME` | no | — | Standard OTel env var; overrides the `service.name` passed to `GetTracer` / `metrics.Init`. |
 
 ## Bootstrap
 

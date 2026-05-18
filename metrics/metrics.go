@@ -69,6 +69,10 @@ func Init(ctx context.Context, serviceName string) (*Provider, error) {
 			ctx,
 			resource.WithDetectors(gcp.NewDetector()),
 			resource.WithTelemetrySDK(),
+			// Merge OTEL_RESOURCE_ATTRIBUTES / OTEL_SERVICE_NAME from env so
+			// callers can stamp deployment.environment, service.namespace, etc.
+			// without code changes per consumer.
+			resource.WithFromEnv(),
 			resource.WithAttributes(
 				semconv.ServiceNameKey.String(serviceName),
 			),

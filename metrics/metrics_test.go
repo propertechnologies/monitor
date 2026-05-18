@@ -3,6 +3,8 @@ package metrics
 import (
 	"testing"
 	"time"
+
+	"go.opentelemetry.io/otel/attribute"
 )
 
 func TestIntervalFromEnv(t *testing.T) {
@@ -36,5 +38,33 @@ func TestShutdownNilSafe(t *testing.T) {
 	}
 	if err := (&Provider{}).Shutdown(nil); err != nil {
 		t.Errorf("Shutdown on empty Provider: %v", err)
+	}
+}
+
+func TestResourceAttrsKeptAsMetricLabels(t *testing.T) {
+	cases := []struct {
+		name string
+		key  string
+		val  string
+		want bool
+	}{
+		{"service.name kept (default filter)", "service.name", "contador", true},
+		{"service.namespace kept (default filter)", "service.namespace", "proper", true},
+		{"deployment.environment kept", "deployment.environment", "dev", true},
+		{"deployment.environment.name kept", "deployment.environment.name", "prod", true},
+		{"service.version kept", "service.version", "1.2.3", true},
+		{"deployment.environment empty value rejected", "deployment.environment", "", false},
+		{"unrelated attribute rejected", "host.name", "instance-abc", false},
+		{"cloud.platform rejected", "cloud.platform", "gcp_cloud_run", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			kv := attribute.Key(c.key).String(c.val)
+			got := resourceAttrsKeptAsMetricLabels(kv)
+			if got != c.want {
+				t.Errorf("resourceAttrsKeptAsMetricLabels(%s=%q) = %v, want %v",
+					c.key, c.val, got, c.want)
+			}
+		})
 	}
 }

@@ -21,11 +21,34 @@ import (
 	mexporter "github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/metric"
 	"go.opentelemetry.io/contrib/detectors/gcp"
 	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/metric"
 	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
 	"go.opentelemetry.io/otel/sdk/resource"
 	semconv "go.opentelemetry.io/otel/semconv/v1.26.0"
 )
+
+// resourceAttrsKeptAsMetricLabels extends the GCP metric exporter's default
+// filter (which only keeps service.name / service.namespace / service.instance.id)
+// with attributes that operators want as Cloud Monitoring labels for
+// dashboards and alerts. Notably: deployment.environment, so dev/stage/prod
+// telemetry sharing a single GCP project can be filtered apart.
+//
+// Both the legacy `deployment.environment` and the newer semconv name
+// `deployment.environment.name` are included because we don't control which
+// one users set via OTEL_RESOURCE_ATTRIBUTES.
+func resourceAttrsKeptAsMetricLabels(kv attribute.KeyValue) bool {
+	if mexporter.DefaultResourceAttributesFilter(kv) {
+		return true
+	}
+	switch kv.Key {
+	case attribute.Key("deployment.environment"),
+		attribute.Key("deployment.environment.name"),
+		semconv.ServiceVersionKey:
+		return len(kv.Value.AsString()) > 0
+	}
+	return false
+}
 
 const (
 	EnvProjectID       = "GCP_PROJECT_ID"
@@ -59,7 +82,10 @@ func Init(ctx context.Context, serviceName string) (*Provider, error) {
 			return
 		}
 
-		exporter, err := mexporter.New(mexporter.WithProjectID(projectID))
+		exporter, err := mexporter.New(
+			mexporter.WithProjectID(projectID),
+			mexporter.WithFilteredResourceAttributes(resourceAttrsKeptAsMetricLabels),
+		)
 		if err != nil {
 			initErr = fmt.Errorf("metrics: create exporter: %w", err)
 			return

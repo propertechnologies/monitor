@@ -31,6 +31,16 @@ const (
 	attrService     = "service.name"
 )
 
+// durationBucketsMs overrides the OTel default explicit-bucket histogram
+// boundaries on http.server.duration. The OTel default caps at 10000ms, which
+// silently clips p95/p99 for batch / long-poll endpoints to a flat 10s. New
+// range spans 5ms to 5min (the Cloud Run default request timeout) so slow
+// endpoints become measurable and so we see latency creeping toward the
+// platform timeout before requests get killed.
+var durationBucketsMs = []float64{
+	5, 10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 30000, 60000, 120000, 300000,
+}
+
 // Middleware returns a Gin handler chain that emits per-route HTTP metrics and
 // installs the standard otelgin tracing instrumentation. `serviceName` is added
 // as an attribute on every metric — match it to the service.name resource set
@@ -57,6 +67,7 @@ func metricsMiddleware(serviceName string) gin.HandlerFunc {
 		metricDuration,
 		otelmetric.WithDescription("HTTP request duration, by route and status class"),
 		otelmetric.WithUnit("ms"),
+		otelmetric.WithExplicitBucketBoundaries(durationBucketsMs...),
 	)
 	if err != nil {
 		duration = nil
